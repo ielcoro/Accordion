@@ -15,10 +15,10 @@
 $.widget("ui.accordion", {
 
 	_init: function() {
-
+		//BY HUSSEIN AHMAD HARAKE, MAKE THE ACCORDION COLLAPSIBLE IF IT IS MULTIPLE
+		if(this.options.multiple===true) this.options.collapsible=true;
 		var o = this.options, self = this;
 		this.running = 0;
-
 		// if the user set the alwaysOpen option on init
 		// then we need to set the collapsible option
 		// if they set both on init, collapsible will take priority
@@ -72,7 +72,6 @@ $.widget("ui.accordion", {
 
 		//ARIA
 		this.element.attr('role','tablist');
-
 		this.headers
 			.attr('role','tab')
 			.bind('keydown', function(event) { return self._keydown(event); })
@@ -133,7 +132,6 @@ $.widget("ui.accordion", {
 	},
 
 	_keydown: function(event) {
-
 		var o = this.options, keyCode = $.ui.keyCode;
 
 		if (o.disabled || event.altKey || event.ctrlKey)
@@ -214,10 +212,10 @@ $.widget("ui.accordion", {
 	},
 
 	_clickHandler: function(event, target) {
-
+		//BY HUSSEIN AHMAD HARAKE, ADDING THIS STATEMENT TO AVOID THE BUG WHERE SECTIONS ARE COLLAPSED SUDDENLY WHILE RUNNING>0 WHICH MAKE RUNNING NEGATIVE SOMETIMES
+		if(this.running<1) this.running=0;
 		var o = this.options;
 		if (o.disabled) return false;
-
 		// called only when using activate(false) to close all parts programmatically
 		if (!event.target && o.collapsible) {
 			this.active.removeClass("ui-state-active ui-corner-top").addClass("ui-state-default ui-corner-all")
@@ -235,43 +233,54 @@ $.widget("ui.accordion", {
 			this._toggle(toShow, toHide, data);
 			return false;
 		}
-
 		// get the click target
 		var clicked = $(event.currentTarget || target);
-		var clickedIsActive = clicked[0] == this.active[0];
+		//BY HUSSEIN AHMAD HARAKE, REPLACING, MAKING THE TEST clickedIsActive MATCH BOTH CASES MULTIPLE TRUE/FALSE
+		var clickedIsActive=this.active.index(clicked[0])>-1; // or clickedIsActive=clicked.hasClass('ui-state-active'); // I prefer the first one
+		
 
 		// if animations are still active, or the active header is the target, ignore click
-		if (this.running || (!o.collapsible && clickedIsActive)) {
+		//BY HUSSEIN AHMAD HARAKE, MAKING THE CONDITION DEEPER ENOUGH
+		if ((this.running && o.allowWhileRuning!==true) || (!o.collapsible && clickedIsActive)) {
 			return false;
 		}
 
 		// switch classes
-		this.active.removeClass("ui-state-active ui-corner-top").addClass("ui-state-default ui-corner-all")
-			.find(".ui-icon").removeClass(o.icons.headerSelected).addClass(o.icons.header);
-		this.active.next().addClass('ui-accordion-content-active');
+		//BY HUSSEIN AHMAD HARAKE, ADDING AN IF BLOCK TO CONTAIN THE TWO NEXT OLD STATEMENTS
+		if(o.multiple!==true)
+		{
+			this.active.removeClass("ui-state-active ui-corner-top").addClass("ui-state-default ui-corner-all")
+				.find(".ui-icon").removeClass(o.icons.headerSelected).addClass(o.icons.header);
+			this.active.next().addClass('ui-accordion-content-active');
+		}
+		//BY HUSSEIN AHMAD HARAKE, ADDING THIS ELSE BLOCK ALSO
+		else if(clickedIsActive)
+		{
+			clicked.removeClass("ui-state-active ui-corner-top").addClass("ui-state-default ui-corner-all")
+				.find(".ui-icon").removeClass(o.icons.headerSelected).addClass(o.icons.header);
+			clicked.next().addClass('ui-accordion-content-active');
+		}
 		if (!clickedIsActive) {
 			clicked.removeClass("ui-state-default ui-corner-all").addClass("ui-state-active ui-corner-top")
 				.find(".ui-icon").removeClass(o.icons.header).addClass(o.icons.headerSelected);
 			clicked.next().addClass('ui-accordion-content-active');
 		}
-
 		// find elements to show and hide
+		//BY HUSSEIN AHMAD HARAKE, REPLACING THE OLD BLOCK
 		var toShow = clicked.next(),
-			toHide = this.active.next(),
+			toHide = o.multiple===true?clickedIsActive?clicked.next():$([]):this.active.next(),
 			data = {
 				options: o,
 				newHeader: clickedIsActive && o.collapsible ? $([]) : clicked,
-				oldHeader: this.active,
+				oldHeader: o.multiple===true?$([]):this.active,
 				newContent: clickedIsActive && o.collapsible ? $([]) : toShow.find('> *'),
 				oldContent: toHide.find('> *')
 			},
-			down = this.headers.index( this.active[0] ) > this.headers.index( clicked[0] );
-
-		this.active = clickedIsActive ? $([]) : clicked;
+			down = o.multiple===true?clickedIsActive?false:true:this.active.length==0?true:this.headers.index(this.active[0] ) > this.headers.index( clicked[0] );
+		this.active = o.multiple===true?this.headers.filter('.ui-state-active'):clickedIsActive ? $([]) : clicked;
+		//END REPLACING
 		this._toggle(toShow, toHide, data, clickedIsActive, down);
-
 		return false;
-
 	},
 
 	_toggle: function(toShow, toHide, data, clickedIsActive, down) {
@@ -356,7 +365,6 @@ $.widget("ui.accordion", {
 
 		toHide.prev().attr('aria-expanded','false').attr("tabIndex", "-1").blur();
 		toShow.prev().attr('aria-expanded','true').attr("tabIndex", "0").focus();
-
 	},
 
 	_completed: function(cancel) {
@@ -399,12 +407,15 @@ $.extend($.ui.accordion, {
 		navigationFilter: function() {
 			return this.href.toLowerCase() == location.href.toLowerCase();
 		}
+		//BY HUSSEIN AHMAD HARAKE, ADDING multiple AND allowWhileRuning ATTRIBUTES
+		,multiple:false,
+		allowWhileRuning:false
 	},
 	animations: {
 		slide: function(options, additions) {
 			options = $.extend({
 				easing: "swing",
-				duration: 300
+				duration: 1000
 			}, options, additions);
 			if ( !options.toHide.size() ) {
 				options.toShow.animate({height: "show"}, options);
